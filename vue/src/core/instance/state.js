@@ -69,6 +69,7 @@ function initProps (vm: Component, propsOptions: Object) {
   const keys = vm.$options._propKeys = []
   const isRoot = !vm.$parent
   // root instance props should be converted
+  // 根实例的 props 会被转换
   if (!isRoot) {
     toggleObserving(false)
   }
@@ -111,6 +112,7 @@ function initProps (vm: Component, propsOptions: Object) {
 
 function initData (vm: Component) {
   let data = vm.$options.data
+  // vue文件中写data()函数
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
@@ -143,11 +145,12 @@ function initData (vm: Component) {
         `Use prop default value instead.`,
         vm
       )
-    } else if (!isReserved(key)) {
+    } else if (!isReserved(key)) { // 保留"$" , "_" 开头key
+      // defineProperty  挟持get、set方法，_data触发获取vm[key]的属性  同时吧key和value设置到vm当中
       proxy(vm, `_data`, key)
     }
   }
-  // observe data
+  // observe data  _data
   observe(data, true /* asRootData */)
 }
 
@@ -155,6 +158,7 @@ export function getData (data: Function, vm: Component): any {
   // #7573 disable dep collection when invoking data getters
   pushTarget()
   try {
+    // 绑定this为vm，vm作为参数
     return data.call(vm, vm)
   } catch (e) {
     handleError(e, vm, `data()`)
@@ -168,12 +172,16 @@ const computedWatcherOptions = { lazy: true }
 
 function initComputed (vm: Component, computed: Object) {
   // $flow-disable-line
+  // 创建一个watcher空对象
   const watchers = vm._computedWatchers = Object.create(null)
   // computed properties are just getters during SSR
   const isSSR = isServerRendering()
 
+  // 遍历computed
   for (const key in computed) {
+    // 拿到计算属性方法
     const userDef = computed[key]
+    // 创建 Watcher lazy:true 默认不执行 ，看是否需要重新计算，computed 是有缓存的
     const getter = typeof userDef === 'function' ? userDef : userDef.get
     if (process.env.NODE_ENV !== 'production' && getter == null) {
       warn(
@@ -196,6 +204,7 @@ function initComputed (vm: Component, computed: Object) {
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
     if (!(key in vm)) {
+      //监听 computed 方法
       defineComputed(vm, key, userDef)
     } else if (process.env.NODE_ENV !== 'production') {
       if (key in vm.$data) {
@@ -214,11 +223,13 @@ export function defineComputed (
 ) {
   const shouldCache = !isServerRendering()
   if (typeof userDef === 'function') {
+    // 传入的是方法走这里
     sharedPropertyDefinition.get = shouldCache
       ? createComputedGetter(key)
       : createGetterInvoker(userDef)
     sharedPropertyDefinition.set = noop
   } else {
+    // 也可以传入一个对象，有 set 方法
     sharedPropertyDefinition.get = userDef.get
       ? shouldCache && userDef.cache !== false
         ? createComputedGetter(key)
@@ -235,19 +246,25 @@ export function defineComputed (
       )
     }
   }
+  // 包装计算属性的方法名，给 vm 上添加 computed 方法
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 
 function createComputedGetter (key) {
   return function computedGetter () {
+    // 重点！模板上访问计算属性才走这里
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
+      // dirty = lazy 默认是 true
       if (watcher.dirty) {
+        // 渲染的时候会进入这里
         watcher.evaluate()
       }
+      // 此时渲染还未结束 Dep.target = 渲染 watcher，computed 函数内部的变量收集渲染 watcher
       if (Dep.target) {
         watcher.depend()
       }
+      // 计算好的参数返回给用户
       return watcher.value
     }
   }
@@ -288,13 +305,17 @@ function initMethods (vm: Component, methods: Object) {
 }
 
 function initWatch (vm: Component, watch: Object) {
+  // 获取到传入的 watch
+  // 遍历 watch 列表
   for (const key in watch) {
     const handler = watch[key]
+    // 可以传入数组
     if (Array.isArray(handler)) {
       for (let i = 0; i < handler.length; i++) {
         createWatcher(vm, key, handler[i])
       }
     } else {
+      //创建 watch
       createWatcher(vm, key, handler)
     }
   }
@@ -306,6 +327,7 @@ function createWatcher (
   handler: any,
   options?: Object
 ) {
+  // handler 是一个对象的话，可以设置deep监听
   if (isPlainObject(handler)) {
     options = handler
     handler = handler.handler
@@ -352,7 +374,9 @@ export function stateMixin (Vue: Class<Component>) {
       return createWatcher(vm, expOrFn, cb, options)
     }
     options = options || {}
+    // 标识这个是用户 watch
     options.user = true
+    // 使用 Watcher 类来创建渲染 Watcher
     const watcher = new Watcher(vm, expOrFn, cb, options)
     if (options.immediate) {
       try {

@@ -7,14 +7,17 @@ import { isIE, isIOS, isNative } from './env'
 
 export let isUsingMicroTask = false
 
-const callbacks = []
-let pending = false
+const callbacks = [] // 储存 nextTick 回调函数
+let pending = false // 只开启一个 timerFunc
 
 function flushCallbacks () {
   pending = false
+  // 复制 callback
   const copies = callbacks.slice(0)
+  // 清除 callback
   callbacks.length = 0
   for (let i = 0; i < copies.length; i++) {
+    // 依次调用 nextTick 回调
     copies[i]()
   }
 }
@@ -30,7 +33,7 @@ function flushCallbacks () {
 // where microtasks have too high a priority and fire in between supposedly
 // sequential events (e.g. #4521, #6690, which have workarounds)
 // or even between bubbling of the same event (#6566).
-let timerFunc
+let timerFunc // 定时函数
 
 // The nextTick behavior leverages the microtask queue, which can be accessed
 // via either native Promise.then or MutationObserver.
@@ -39,6 +42,14 @@ let timerFunc
 // completely stops working after triggering a few times... so, if native
 // Promise is available, we will use it:
 /* istanbul ignore next, $flow-disable-line */
+
+
+/*
+vue的降级策略（兼容）promise -> MutationObserver -> setImmediate -> setTimeout
+原理：利用异步队列
+在每个 macro-task 运行完以后，UI 都会重渲染，那么在 miscro-task （异步事件回调） 中就完成数据更新，当前 次事件循环 结束就可以得到最新的 UI 了。反之如果新建一个 macro-task 来做数据更新，那么渲染就会进行两次。
+*/
+
 if (typeof Promise !== 'undefined' && isNative(Promise)) {
   const p = Promise.resolve()
   timerFunc = () => {
@@ -86,6 +97,7 @@ if (typeof Promise !== 'undefined' && isNative(Promise)) {
 
 export function nextTick (cb?: Function, ctx?: Object) {
   let _resolve
+  // 压入 nextTick 回调，可存入多个
   callbacks.push(() => {
     if (cb) {
       try {
@@ -97,6 +109,8 @@ export function nextTick (cb?: Function, ctx?: Object) {
       _resolve(ctx)
     }
   })
+
+  // 开起定时函数
   if (!pending) {
     pending = true
     timerFunc()

@@ -21,6 +21,7 @@ const arrayKeys = Object.getOwnPropertyNames(arrayMethods)
 /**
  * In some cases we may want to disable observation inside a component's
  * update computation.
+ * 在某些情况下，我们可能希望禁用组件更新计算中的观察。 false -observer方法将不添加 __ob__对象
  */
 export let shouldObserve: boolean = true
 
@@ -45,13 +46,20 @@ export class Observer {
     this.vmCount = 0
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
+      // hasProto = '__proto__' in {}
+      // 检查运行环境对象是否支持__proto__ 属性
       if (hasProto) {
+        // value的原型链上添加为Array的原型
         protoAugment(value, arrayMethods)
       } else {
+        // 给数组的每个元素都执行一遍 def(target, key, arrayMethods[key])  arrayMethods = []  arrayKeys = [ "length", "toString", "toLocaleString", "join", "reverse", "sort", "push", "pop", "shift", "unshift", … ]
         copyAugment(value, arrayMethods, arrayKeys)
       }
+
+      //尝试监听数组内部的属性。
       this.observeArray(value)
     } else {
+      //递归处理对象
       this.walk(value)
     }
   }
@@ -71,6 +79,7 @@ export class Observer {
   /**
    * Observe a list of Array items.
    */
+  // 观察数组项的列表
   observeArray (items: Array<any>) {
     for (let i = 0, l = items.length; i < l; i++) {
       observe(items[i])
@@ -141,29 +150,41 @@ export function defineReactive (
 ) {
   const dep = new Dep()
 
+  // 查询Own的property，不从原型链上获取
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
   }
 
   // cater for pre-defined getter/setters
+  // 获取属性的get、set方法
   const getter = property && property.get
   const setter = property && property.set
+
+  // 只有2个参数时，val使用obj对象的原值
   if ((!getter || setter) && arguments.length === 2) {
     val = obj[key]
   }
 
+  // shallow - 浅
   let childOb = !shallow && observe(val)
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
       const value = getter ? getter.call(obj) : val
+      // 渲染的期间给每个放在页面上的变量添加 watcher
+      // 只有渲染阶段才会 Dep.target ，有正常访问 target 是没有的
       if (Dep.target) {
+        // 给属性 dep 添加 watcher    (this) 指向调用着watch 只有watch有addDep方法
+        // 触发get方法时调用dep.depend()，将触发get的那个对象的watcher中添加当前当前value的dep添加到deps数组中depIds（去重），  watcher中有deps数组  dep中有sub维护watcher数组
         dep.depend()
+        // childOb 为默认值，给默认值也进行observe() =》  new Observer(val)
         if (childOb) {
+          //给属性是数组或者是对象的添加 watcher
           childOb.dep.depend()
           if (Array.isArray(value)) {
+            //如果是数组递归数组给数组里面的数组添加 watcher
             dependArray(value)
           }
         }
@@ -187,7 +208,10 @@ export function defineReactive (
       } else {
         val = newVal
       }
+      // 更新数组或者对象的时候也要创建一个新的 dep 给 childDep
+      // observe = new Observer(newVal)
       childOb = !shallow && observe(newVal)
+      // 更新视图
       dep.notify()
     }
   })

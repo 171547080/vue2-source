@@ -12,6 +12,8 @@ export const unicodeRegExp = /a-zA-Z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037
  */
 export function isReserved (str: string): boolean {
   const c = (str + '').charCodeAt(0)
+  // $ or _
+  // 0x24 = 36 (十进制) = ASCII ($)  0x5F = 95 (十进制) = ASCII (_) 
   return c === 0x24 || c === 0x5F
 }
 

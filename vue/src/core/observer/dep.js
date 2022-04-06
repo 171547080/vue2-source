@@ -20,6 +20,7 @@ export default class Dep {
     this.subs = []
   }
 
+  //给 dep 添加对应的 watch
   addSub (sub: Watcher) {
     this.subs.push(sub)
   }
@@ -28,12 +29,14 @@ export default class Dep {
     remove(this.subs, sub)
   }
 
+   //给 watcher 添加 Dep
   depend () {
     if (Dep.target) {
       Dep.target.addDep(this)
     }
   }
 
+  //调用 watcher 里的渲染函数
   notify () {
     // stabilize the subscriber list first
     const subs = this.subs.slice()
@@ -52,14 +55,17 @@ export default class Dep {
 // The current target watcher being evaluated.
 // This is globally unique because only one watcher
 // can be evaluated at a time.
+//正在评估的当前目标观察者。
+//这是全局唯一的，因为一次只能评估一个观察者。
 Dep.target = null
 const targetStack = []
 
+// 渲染阶段，访问页面上的属性变量时，给对应的 Dep 添加 watcher
 export function pushTarget (target: ?Watcher) {
   targetStack.push(target)
   Dep.target = target
 }
-
+// 访问结束后删除
 export function popTarget () {
   targetStack.pop()
   Dep.target = targetStack[targetStack.length - 1]

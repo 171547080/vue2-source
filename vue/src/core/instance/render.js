@@ -71,6 +71,7 @@ export function renderMixin (Vue: Class<Component>) {
     const { render, _parentVnode } = vm.$options
 
     if (_parentVnode) {
+      // 规范化作用域插槽
       vm.$scopedSlots = normalizeScopedSlots(
         _parentVnode.data.scopedSlots,
         vm.$slots,
@@ -87,7 +88,9 @@ export function renderMixin (Vue: Class<Component>) {
       // There's no need to maintain a stack becaues all render fns are called
       // separately from one another. Nested component's render fns are called
       // when parent component is patched.
+      // 无需维护堆栈，因为所有渲染FN都是单独调用的。当父组件被修补时，嵌套组件的渲染FN被调用。
       currentRenderingInstance = vm
+      // 调用render函数，获取到vnode
       vnode = render.call(vm._renderProxy, vm.$createElement)
     } catch (e) {
       handleError(e, vm, `render`)

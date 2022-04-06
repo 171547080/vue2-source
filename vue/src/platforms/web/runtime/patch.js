@@ -7,6 +7,9 @@ import platformModules from 'web/runtime/modules/index'
 
 // the directive module should be applied last, after all
 // built-in modules have been applied.
+
+// baseModules  = [ref,directives]
+// modules = [attrs,klass,events,domProps,style,transition]
 const modules = platformModules.concat(baseModules)
 
 export const patch: Function = createPatchFunction({ nodeOps, modules })

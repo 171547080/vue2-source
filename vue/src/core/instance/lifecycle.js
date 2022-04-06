@@ -59,16 +59,22 @@ export function lifecycleMixin (Vue: Class<Component>) {
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this
     const prevEl = vm.$el
+    // 获取到上一次的 Vnode 用于 diff 对比
     const prevVnode = vm._vnode
+    // 记录当前vnode
     const restoreActiveInstance = setActiveInstance(vm)
     vm._vnode = vnode
     // Vue.prototype.__patch__ is injected in entry points
     // based on the rendering backend used.
+    // __patch__是在src\platforms\web\runtime\index.js 中注入的
+    // 触发patch方法
     if (!prevVnode) {
       // initial render
+      // 首次渲染走这里
       vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
     } else {
       // updates
+      // 数据更新驱动视图更新走这里，打补丁操作,prevVnode为更新前的vnode（old）
       vm.$el = vm.__patch__(prevVnode, vnode)
     }
     restoreActiveInstance()
@@ -144,6 +150,7 @@ export function mountComponent (
   hydrating?: boolean
 ): Component {
   vm.$el = el
+  // 你存在render函数，则使用createEmptyVNode方法
   if (!vm.$options.render) {
     vm.$options.render = createEmptyVNode
     if (process.env.NODE_ENV !== 'production') {
@@ -187,6 +194,9 @@ export function mountComponent (
     }
   } else {
     updateComponent = () => {
+      // 调用_render()方法获取到 vnode,并触发_update方法进行一次更新操作
+      // core\instance\lifecycle.js 注入了Vue.prototype._update方法
+      // instance\render.js 注入了  Vue.prototype._render
       vm._update(vm._render(), hydrating)
     }
   }

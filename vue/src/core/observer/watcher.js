@@ -56,18 +56,18 @@ export default class Watcher {
     vm._watchers.push(this)
     // options
     if (options) {
-      this.deep = !!options.deep
-      this.user = !!options.user
-      this.lazy = !!options.lazy
+      this.deep = !!options.deep // 深度监听
+      this.user = !!options.user // 这是个 watch
+      this.lazy = !!options.lazy // true 默认不执行 这是一个 computed
       this.sync = !!options.sync
       this.before = options.before
     } else {
       this.deep = this.user = this.lazy = this.sync = false
     }
-    this.cb = cb
+    this.cb = cb // watch 回调
     this.id = ++uid // uid for batching
     this.active = true
-    this.dirty = this.lazy // for lazy watchers
+    this.dirty = this.lazy // for lazy watchers  // computed 看是否需要从新求值
     this.deps = []
     this.newDeps = []
     this.depIds = new Set()
@@ -79,6 +79,9 @@ export default class Watcher {
     if (typeof expOrFn === 'function') {
       this.getter = expOrFn
     } else {
+      // str
+      // new RegExp(`[^${unicodeRegExp.source}.$_\\d]`)
+      // 如:"username","user.username"    parsePath返回当前的value
       this.getter = parsePath(expOrFn)
       if (!this.getter) {
         this.getter = noop
@@ -90,6 +93,7 @@ export default class Watcher {
         )
       }
     }
+    // new watcher时，如果不设置lazy则触发一次get方法（同时也会触发一次getter方法 => expOrFn (监听后执行的函数)）
     this.value = this.lazy
       ? undefined
       : this.get()
@@ -97,12 +101,16 @@ export default class Watcher {
 
   /**
    * Evaluate the getter, and re-collect dependencies.
+   * 评估getter，并重新收集依赖项。
    */
+
   get () {
+    //标记 target
     pushTarget(this)
     let value
     const vm = this.vm
     try {
+      // 重点，这里会去访问我们给属性重写的 get 方法，添加 watcher 依赖
       value = this.getter.call(vm, vm)
     } catch (e) {
       if (this.user) {
@@ -116,6 +124,7 @@ export default class Watcher {
       if (this.deep) {
         traverse(value)
       }
+      //弹出target防止data上每个属性都产生依赖，只有页面上使用的变量需要依赖
       popTarget()
       this.cleanupDeps()
     }
@@ -127,10 +136,13 @@ export default class Watcher {
    */
   addDep (dep: Dep) {
     const id = dep.id
+    //去重防止 dep 添加 watch 多次
     if (!this.newDepIds.has(id)) {
       this.newDepIds.add(id)
+      // watcher 添加 dep
       this.newDeps.push(dep)
       if (!this.depIds.has(id)) {
+        // 重点！给 dep 添加 watch
         dep.addSub(this)
       }
     }
@@ -178,16 +190,20 @@ export default class Watcher {
    */
   run () {
     if (this.active) {
+      // 最新值vm[expOrFn]
       const value = this.get()
       if (
+        
         value !== this.value ||
-        // Deep watchers and watchers on Object/Arrays should fire even
+        // Deep watchers and watchers on Object/Arrays should fire when the value is the same, because the value may even have mutated
         // when the value is the same, because the value may
         // have mutated.
+        // 深度监视程序和对象/数组上的监视程序应该在值相同时启动，因为值相同时，也可能发生了变化
         isObject(value) ||
         this.deep
       ) {
         // set new value
+        // this.value 缓存的旧值
         const oldValue = this.value
         this.value = value
         if (this.user) {
@@ -208,7 +224,9 @@ export default class Watcher {
    * This only gets called for lazy watchers.
    */
   evaluate () {
+    // 当走到这里时，页面正在渲染中 Dep.target 已经有一个渲染 watcher 了
     this.value = this.get()
+    // 修改了计算属性里面脏值
     this.dirty = false
   }
 
@@ -216,6 +234,7 @@ export default class Watcher {
    * Depend on all deps collected by this watcher.
    */
   depend () {
+    //给 computed 函数内部的属性添加渲染 watcher
     let i = this.deps.length
     while (i--) {
       this.deps[i].depend()

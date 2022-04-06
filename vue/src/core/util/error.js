@@ -43,9 +43,11 @@ export function invokeWithErrorHandling (
   let res
   try {
     res = args ? handler.apply(context, args) : handler.call(context)
+    // 如果是Promise
     if (res && !res._isVue && isPromise(res)) {
       // issue #9511
       // reassign to res to avoid catch triggering multiple times when nested calls
+      // 重新分配到res，以避免在嵌套调用时多次触发catch
       res = res.catch(e => handleError(e, vm, info + ` (Promise/async)`))
     }
   } catch (e) {
